@@ -1,0 +1,35 @@
+# ---- Personal data: never commit ----------------------------------------
+data/*
+!data/.gitkeep
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+applytrail-backup-*.json
+applytrail-*.csv
+exports/
+*.xlsx
+*.xls
+*.xlsm
+.env
+.env.*
+!.env.example
+
+# ---- Python --------------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# ---- Node ----------------------------------------------------------------
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# ---- OS / editors --------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/

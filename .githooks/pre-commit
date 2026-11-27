@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Refuse to commit anything that could contain personal job-search data.
+# Enabled with:  git config core.hooksPath .githooks   (make hooks does this)
+set -euo pipefail
+
+blocked=()
+while IFS= read -r -d '' path; do
+  case "$path" in
+    data/.gitkeep) ;;
+    data/*|*.db|*.db-journal|*.db-wal|*.db-shm|*.sqlite|*.sqlite3|\
+    applytrail-backup-*.json|*/applytrail-backup-*.json|applytrail-*.csv|*/applytrail-*.csv|\
+    *.xlsx|*.xls|*.xlsm|\
+    .env|*/.env|.env.*|*/.env.*)
+      [[ "$path" == *.env.example ]] || blocked+=("$path") ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if ((${#blocked[@]})); then
+  echo "✋ pre-commit: these files may contain personal data and were not committed:" >&2
+  printf '   %s\n' "${blocked[@]}" >&2
+  echo "   Unstage them with: git restore --staged <file>" >&2
+  echo "   (If you are really sure, bypass with: git commit --no-verify)" >&2
+  exit 1
+fi
