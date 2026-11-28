@@ -3,6 +3,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -14,19 +15,32 @@ import type { Analytics } from "../types";
 
 /* Validated reference palette (categorical slots in fixed order), stepped per mode.
    SVG presentation attributes can't read CSS variables, so colors are resolved in JS. */
+// Low-saturation version of the reference palette (same hue order and lightness, chroma
+// lowered to ~0.115 light / ~0.135 dark): still passes the colour-blind separation checks.
 const LIGHT = {
   surface: "#ffffff",
-  grid: "#ebebeb",
-  axis: "#666666",
-  text: "#191919",
-  series: ["#257de0", "#f47230", "#00b894", "#f2a600", "#ee7fac", "#008a17", "#6a4ce2", "#ec4647"],
+  grid: "#ebe8e2",
+  axis: "#6c6860",
+  text: "#2b2a27",
+  series: ["#4b80c1", "#d98560", "#3eb495", "#e1ad5d", "#e189ab", "#438243", "#6962ad", "#c76d67"],
+  // Stage progress: Applied (gray) -> Offer (green), one hue, validated as an ordinal ramp.
+  stages: ["#b3b5b3", "#98a598", "#7e967e", "#648664", "#49774b", "#2d6731", "#015814"],
+  progress: "#2d6731", // "moved on": deep green, separable from red by lightness
+  rejected: "#c76d67",
+  // Online-assessment phases: one gray -> green family (validated ordinal steps), so
+  // neighbouring segments differ by lightness instead of clashing hues.
+  oa: { wait: "#b3b5b3", took: "#7e967e", result: "#49774b", notTaken: "#cdb68c" },
 };
 const DARK = {
-  surface: "#191919",
-  grid: "#2e2e2e",
-  axis: "#9c9c9c",
-  text: "#efefef",
-  series: ["#338ced", "#e76624", "#00a888", "#d28e05", "#e24d8b", "#0aac23", "#9887ef", "#eb6263"],
+  surface: "#1e1e1c",
+  grid: "#35342f",
+  axis: "#a29e96",
+  text: "#e8e6e1",
+  series: ["#4b8dda", "#d57449", "#00a888", "#ce9027", "#cc668b", "#56a356", "#988ae7", "#dc706e"],
+  stages: ["#545654", "#5f6c5f", "#698369", "#749b74", "#7eb47f", "#87cc89", "#91e694"],
+  progress: "#357339",
+  rejected: "#dc706e",
+  oa: { wait: "#545654", took: "#698369", result: "#7eb47f", notTaken: "#8c7b58" },
 };
 
 export function useChartTheme() {
@@ -76,22 +90,13 @@ const legendProps = (t: Theme) => ({
 export const STATUS_SLOT: Record<string, number> = {
   active: 0,
   pending: 1,
-  rejected: 2,
-  ghosted: 3,
-  withdrawn: 4,
-  accepted: 5,
-  unfinished: 6,
-  cancelled: 7,
+  ghosted: 2,
+  withdrawn: 3,
+  unfinished: 4,
+  accepted: 5, // green
+  cancelled: 6,
+  rejected: 7, // red
 };
-
-const DROP_SERIES = [
-  { key: "likely_ghosted", name: "No reply (pending too long)", slot: STATUS_SLOT.pending },
-  { key: "rejected", name: "Rejected", slot: STATUS_SLOT.rejected },
-  { key: "ghosted", name: "Ghosted (marked)", slot: STATUS_SLOT.ghosted },
-  { key: "withdrawn", name: "Withdrew", slot: STATUS_SLOT.withdrawn },
-  { key: "unfinished", name: "Unfinished", slot: STATUS_SLOT.unfinished },
-  { key: "cancelled", name: "Job cancelled", slot: STATUS_SLOT.cancelled },
-] as const;
 
 /* One color per stage, shared by every chart that splits by stage (fixed slot order). */
 const STAGE_SERIES = [
@@ -103,36 +108,6 @@ const STAGE_SERIES = [
   { key: "onsite", name: "Onsite", short: "Onsite" },
   { key: "offer", name: "Offer", short: "Offer" },
 ].map((st, slot) => ({ ...st, slot }));
-const SHORT_STAGE: Record<string, string> = Object.fromEntries(STAGE_SERIES.map((st) => [st.key, st.short]));
-
-export function DropOffChart({ data }: { data: Analytics["stages"] }) {
-  const t = useChartTheme();
-  const rows = data.map((d) => ({ ...d, short: SHORT_STAGE[d.stage] ?? d.label }));
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={rows} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke={t.grid} />
-        <XAxis dataKey="short" {...axisProps(t)} interval={0} />
-        <YAxis allowDecimals={false} {...axisProps(t)} axisLine={false} />
-        <Tooltip {...tooltipProps(t)} />
-        <Legend {...legendProps(t)} />
-        {DROP_SERIES.map((s) => (
-          <Bar
-            key={s.key}
-            dataKey={s.key}
-            name={s.name}
-            stackId="drop"
-            fill={t.series[s.slot]}
-            stroke={t.surface}
-            strokeWidth={2}
-            barSize={34}
-            isAnimationActive={false}
-          />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
 
 /** Inline rate bar with a 95% confidence-interval whisker, used inside tables. */
 export function RateBar({ rate, ci }: { rate: number | null; ci: [number, number] | null }) {
@@ -169,7 +144,7 @@ export function PipelineChart({
         <YAxis type="category" dataKey="axisLabel" width={170} {...axisProps(t)} axisLine={false} />
         <Tooltip {...tooltipProps(t)} />
         <Legend {...legendProps(t)} />
-        {statuses.map((s) => (
+        {[...statuses].sort((a, b) => STATUS_SLOT[a.key] - STATUS_SLOT[b.key]).map((s) => (
           <Bar
             key={s.key}
             dataKey={s.key}
@@ -209,7 +184,7 @@ export function ReasonsChart({ data }: { data: Analytics["rejection_reasons"]["r
             dataKey={s.key}
             name={s.name}
             stackId="reason"
-            fill={t.series[s.slot]}
+            fill={t.stages[s.slot]}
             stroke={t.surface}
             strokeWidth={2}
             barSize={20}
@@ -310,7 +285,7 @@ export function WaitingBars({
           .filter((st) => (b[st.key] as number) > 0)
           .map((st) => (
             <div key={st.key} style={{ color: t.axis }}>
-              <span style={{ color: t.series[st.slot] }}>●</span> {st.name}: {b[st.key] as number}
+              <span style={{ color: t.stages[st.slot] }}>●</span> {st.name}: {b[st.key] as number}
             </div>
           ))}
         <div style={{ color: t.axis, marginTop: 4, fontSize: 12 }}>
@@ -335,7 +310,7 @@ export function WaitingBars({
             dataKey={st.key}
             name={st.name}
             stackId="wait"
-            fill={t.series[st.slot]}
+            fill={t.stages[st.slot]}
             stroke={t.surface}
             strokeWidth={2}
             barSize={44}
@@ -385,11 +360,18 @@ export function AssessmentTimeline({ data }: { data: Analytics["assessments"]["r
     { key: "took", name: "OA arrived → you took it" },
     { key: "result", name: "Took it → result (or today)" },
     { key: "notTaken", name: "Not taken" },
-    { key: "unknown", name: "Arrived → result (taken date not recorded)" },
-  ].map((st, slot) => ({ ...st, slot }));
+    { key: "unknown", name: "Striped: arrived → result, taken date not recorded" },
+  ] as const;
   return (
     <ResponsiveContainer width="100%" height={rowHeight(rows.length)}>
       <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+        <defs>
+          {/* "Taken, date unknown" spans both of your phases, so it's drawn as stripes of the two. */}
+          <pattern id="oa-unknown" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill={t.oa.took} />
+            <rect width="3" height="6" fill={t.oa.result} />
+          </pattern>
+        </defs>
         <CartesianGrid horizontal={false} stroke={t.grid} />
         <XAxis type="number" allowDecimals={false} {...axisProps(t)} unit="d" />
         <YAxis type="category" dataKey="axisLabel" width={260} {...axisProps(t)} axisLine={false} interval={0} />
@@ -401,13 +383,53 @@ export function AssessmentTimeline({ data }: { data: Analytics["assessments"]["r
             dataKey={st.key}
             name={st.name}
             stackId="oa"
-            fill={t.series[st.slot]}
+            fill={st.key === "unknown" ? "url(#oa-unknown)" : t.oa[st.key]}
             stroke={t.surface}
             strokeWidth={2}
             barSize={18}
             isAnimationActive={false}
           />
         ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Median days per stage: until moving on, and until a rejection. Bars are labelled directly. */
+export function TimingChart({ data }: { data: Analytics["timing"]["stage_durations"] }) {
+  const t = useChartTheme();
+  const rows = data
+    .filter((d) => d.median_days !== null || d.median_days_to_rejection !== null)
+    .map((d) => ({
+      label: d.label,
+      next: d.median_days,
+      rejected: d.median_days_to_rejection,
+      nextN: d.n,
+      rejectedN: d.rejected_n,
+    }));
+  if (!rows.length) return <p className="empty-chart">Not enough dated stages yet.</p>;
+  const label = (v: unknown) => (v === null || v === undefined ? "" : `${v}d`);
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(180, rows.length * 64 + 60)}>
+      <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 40, top: 4, bottom: 4 }} barGap={3}>
+        <CartesianGrid horizontal={false} stroke={t.grid} />
+        <XAxis type="number" allowDecimals={false} {...axisProps(t)} unit="d" />
+        <YAxis type="category" dataKey="label" width={170} {...axisProps(t)} axisLine={false} interval={0} />
+        <Tooltip
+          {...tooltipProps(t)}
+          formatter={(v, name, item) => {
+            const r = item.payload as (typeof rows)[number];
+            const n = name === "Until the next stage" ? r.nextN : r.rejectedN;
+            return [v === null ? "no data" : `${v} days (median of ${n})`, name];
+          }}
+        />
+        <Legend {...legendProps(t)} />
+        <Bar dataKey="next" name="Until the next stage" fill={t.progress} radius={[0, 4, 4, 0]} barSize={16} isAnimationActive={false}>
+          <LabelList dataKey="next" position="right" fill={t.text} fontSize={12} formatter={label} />
+        </Bar>
+        <Bar dataKey="rejected" name="Until a rejection" fill={t.rejected} radius={[0, 4, 4, 0]} barSize={16} isAnimationActive={false}>
+          <LabelList dataKey="rejected" position="right" fill={t.text} fontSize={12} formatter={label} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

@@ -118,7 +118,7 @@ export function ApplicationsPage({ thresholds }: { thresholds: Thresholds }) {
         <div className="empty">
           <h2>Track your first application</h2>
           <p className="muted">
-            Paste a line like <code>https://…/jobs/123, Data Analyst, Acme, 11/26</code> into the quick-add bar
+            Paste a line like <code>https://…/jobs/123, Acme, Data Analyst, 11/26</code> into the quick-add bar
             above, or use the full form.
           </p>
           <p className="muted">
@@ -139,8 +139,6 @@ export function ApplicationsPage({ thresholds }: { thresholds: Thresholds }) {
                 <th>Applied</th>
                 <th>Furthest stage</th>
                 <th>Status</th>
-                <th>Source</th>
-                <th className="num">Since</th>
               </tr>
             </thead>
             <tbody>
@@ -158,25 +156,17 @@ export function ApplicationsPage({ thresholds }: { thresholds: Thresholds }) {
                   </td>
                   <td>{a.role}</td>
                   <td className="nowrap">{fmtDate(a.applied_date)}</td>
-                  <td>
+                  <td className="nowrap">
                     <StageTag stage={a.current_stage} label={label("stages", a.current_stage)} />
                   </td>
-                  <td>
+                  <td className="nowrap">
                     <StatusPill app={a} outcomeLabel={label("outcomes", a.outcome)} />
-                  </td>
-                  <td>{label("sources", a.source) || <span className="muted">–</span>}</td>
-                  <td className="num muted nowrap">
-                    {a.outcome === "active"
-                      ? `${a.days_in_stage}d in stage`
-                      : a.outcome_date
-                        ? fmtDate(a.outcome_date)
-                        : "–"}
                   </td>
                 </tr>
               ))}
               {apps.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="muted center">
+                  <td colSpan={5} className="muted center">
                     {loaded ? "No applications match." : "Loading…"}
                   </td>
                 </tr>

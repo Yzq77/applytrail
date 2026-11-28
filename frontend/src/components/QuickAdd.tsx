@@ -14,7 +14,7 @@ const hostOf = (url: string) => {
   }
 };
 
-/** One-line logging: "link, job title, company, date", one application per line.
+/** One-line logging: "link, company, job title, date", one application per line.
  *  The server parses it; we show its parse as a live preview before saving. */
 export function QuickAdd({ resumeVersions, onAdded }: { resumeVersions: string[]; onAdded: (ids: number[]) => Promise<void> }) {
   const label = useLabel();
@@ -63,7 +63,8 @@ export function QuickAdd({ resumeVersions, onAdded }: { resumeVersions: string[]
           aria-label="Quick add applications"
           rows={lines}
           value={text}
-          placeholder="Quick add: link, job title, company, date (e.g. https://…/jobs/123, Data Analyst, Acme, 11/26). Enter to save; Shift+Enter for another line."
+          placeholder="Quick add: link, company, job title, date (optional) · Enter to save"
+          title="e.g. https://…/jobs/123, Acme, Data Analyst, 11/26. The date defaults to today. Shift+Enter adds another line."
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

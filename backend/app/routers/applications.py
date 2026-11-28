@@ -22,7 +22,7 @@ from ..models import (
     StageEventUpdate,
     utcnow,
 )
-from ..quickadd import parse_text
+from ..quickadd import clean_url, parse_text
 from ..reasons import clean_list, unknown_reasons
 from ..services import to_read
 
@@ -94,13 +94,13 @@ def create_application(payload: ApplicationCreate, session: SessionDep, today: T
 
 @router.post("/applications/quick")
 def quick_add(payload: QuickAddRequest, session: SessionDep, today: TodayDep):
-    """Create applications from 'link, job title, company, date' lines.
+    """Create applications from 'link, company, job title, date' lines.
 
     With ``dry_run`` it only returns the parse, which the UI shows as a live preview.
     """
     items = parse_text(payload.text, today)
     existing = session.exec(select(Application)).all()
-    by_url = {a.job_url.rstrip("/").lower(): a for a in existing if a.job_url}
+    by_url = {clean_url(a.job_url).rstrip("/").lower(): a for a in existing if a.job_url}
     by_name = {(a.company.casefold(), a.role.casefold()): a for a in existing}
     for item in items:
         if item.error:

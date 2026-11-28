@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import {
   AssessmentTimeline,
-  DropOffChart,
   PipelineChart,
   RateBar,
   ReasonsChart,
   SkillsChart,
   TAKEN_RESULTS,
+  TimingChart,
   WaitingBars,
 } from "../components/charts";
-import { ErrorBox, StatusBadge } from "../components/ui";
+import { ErrorBox } from "../components/ui";
 import { fmtDate, pct, type Thresholds } from "../meta";
 
 const days = (n: number | null) => (n === null ? "–" : `${n}d`);
@@ -26,7 +26,6 @@ export function AnalyticsPage({
   const { ghostDays, pendingDays } = thresholds;
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dim, setDim] = useState("referral");
 
   useEffect(() => {
     api.analytics(ghostDays, pendingDays).then(setData, (e) => setError(String(e.message ?? e)));
@@ -36,9 +35,6 @@ export function AnalyticsPage({
   if (!data) return <p className="muted">Crunching numbers…</p>;
 
   const s = data.summary;
-  // "Source" is hidden: almost every application goes through a company careers page.
-  const dims = Object.entries(data.breakdowns).filter(([key]) => key !== "source");
-  const breakdown = data.breakdowns[dim] ?? dims[0][1];
 
   return (
     <div className="analytics">
@@ -151,61 +147,24 @@ export function AnalyticsPage({
       </section>
 
       <section className="card">
-        <h2>What the data says</h2>
-        <ul className="insights">
-          {data.insights.map((i, k) => (
-            <li key={k} className={`insight insight-${i.severity}`}>
-              <StatusBadge severity={i.severity} />
-              <div>
-                <strong>{i.title}</strong>
-                <p>{i.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <h2>Timing</h2>
+        <p className="muted small">
+          Median days spent at each stage before moving on, and before a rejection arrived.
+        </p>
+        <div className="mini-kpis">
+          <Kpi
+            label="First reply after applying"
+            value={days(data.timing.days_to_first_response.median)}
+            sub={`median · ${data.timing.days_to_first_response.n} replies`}
+          />
+          <Kpi
+            label="Rejection after applying"
+            value={days(data.timing.days_to_rejection.median)}
+            sub={`median · ${data.timing.days_to_rejection.n} rejections`}
+          />
+        </div>
+        <TimingChart data={data.timing.stage_durations} />
       </section>
-
-      <div className="grid-cards">
-        <section className="card">
-          <h2>Where applications end</h2>
-          <p className="muted small">The last stage reached by applications that didn't work out.</p>
-          <DropOffChart data={data.stages} />
-        </section>
-        <section className="card">
-          <h2>Timing</h2>
-          <p className="muted small">
-            Median days to first reply: <strong>{data.timing.days_to_first_response.median ?? "–"}</strong>{" "}
-            (n={data.timing.days_to_first_response.n}). Median days from applying to a rejection:{" "}
-            <strong>{data.timing.days_to_rejection.median ?? "–"}</strong> (n={data.timing.days_to_rejection.n}).
-          </p>
-          <table className="table compact">
-            <thead>
-              <tr>
-                <th>Stage</th>
-                <th className="num" title="Median days from entering this stage to reaching the next one">
-                  Days to next stage
-                </th>
-                <th className="num" title="Median days from the last movement in this stage to the rejection date">
-                  Days to rejection
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.timing.stage_durations.map((d) => (
-                <tr key={d.stage}>
-                  <td>{d.label}</td>
-                  <td className="num">
-                    {d.median_days ?? "–"} <span className="muted small">(n={d.n})</span>
-                  </td>
-                  <td className="num">
-                    {d.median_days_to_rejection ?? "–"} <span className="muted small">(n={d.rejected_n})</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      </div>
 
       <section className="card">
         <h2>Online assessments</h2>
@@ -376,53 +335,6 @@ export function AnalyticsPage({
             {data.offers.pending} pending)
           </p>
         )}
-      </section>
-
-      <section className="card">
-        <div className="row between wrap">
-          <h2>What makes a difference?</h2>
-          <div className="segmented" role="tablist">
-            {dims.map(([key, b]) => (
-              <button key={key} role="tab" aria-selected={dim === key} className={dim === key ? "on" : ""} onClick={() => setDim(key)}>
-                {b.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="muted small">
-          Results split by {breakdown.label.toLowerCase()}. Groups with fewer than 5 applications are marked
-          as a small sample.
-        </p>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{breakdown.label}</th>
-                <th className="num">Applications</th>
-                <th>Response rate</th>
-                <th className="num">Interview rate</th>
-                <th className="num">Offer rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breakdown.rows.map((r) => (
-                <tr key={r.value} className={r.low_sample ? "low-sample" : ""}>
-                  <td>
-                    {r.value}
-                    {r.low_sample && <span className="tag" title="Fewer than 5 applications">small sample</span>}
-                  </td>
-                  <td className="num">{r.n}</td>
-                  <td><RateBar rate={r.response_rate} ci={r.response_ci} /></td>
-                  <td className="num">{pct(r.interview_rate)}</td>
-                  <td className="num">{pct(r.offer_rate)}</td>
-                </tr>
-              ))}
-              {breakdown.rows.length === 0 && (
-                <tr><td colSpan={5} className="muted center">No applications with a result yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </section>
 
     </div>

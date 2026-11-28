@@ -57,7 +57,7 @@ export default function App() {
     <MetaContext.Provider value={meta}>
       <header className="topbar">
         <div className="brand">
-          <span className="logo" aria-hidden>↗</span> ApplyTrail
+          <span className="logo" aria-hidden>↗</span> Application Tracking
           {meta.demo && <span className="pill pill-warning" title="Fictional data from make seed">demo data</span>}
         </div>
         <nav className="tabs">
@@ -68,7 +68,7 @@ export default function App() {
           ))}
         </nav>
       </header>
-      <main className="page">
+      <main className={tab === "applications" ? "page wide" : "page"}>
         {tab === "applications" && <ApplicationsPage thresholds={thresholds} />}
         {tab === "analytics" && (
           <Suspense fallback={<p className="muted">Loading charts…</p>}>

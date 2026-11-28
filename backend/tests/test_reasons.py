@@ -124,7 +124,7 @@ def test_csv_import_creates_new_reason_labels(client):
 
 
 def test_quick_add_preview_then_create(client):
-    text = "https://www.linkedin.com/jobs/view/1, Data Analyst, Globex, 2026-05-20\nSWE, Initech"
+    text = "https://www.linkedin.com/jobs/view/1, Globex, Data Analyst, 2026-05-20\nInitech, SWE"
     preview = client.post("/api/applications/quick", json={"text": text, "dry_run": True}).json()
     assert [i["company"] for i in preview["items"]] == ["Globex", "Initech"]
     assert preview["items"][0]["source"] == "linkedin"
@@ -144,7 +144,7 @@ def test_quick_add_preview_then_create(client):
 
 
 def test_quick_add_is_all_or_nothing(client):
-    r = client.post("/api/applications/quick", json={"text": "SWE, Acme\njust-one-field"})
+    r = client.post("/api/applications/quick", json={"text": "Acme, SWE\njust-one-field"})
     assert r.status_code == 422
     assert r.json()["detail"]["errors"][0]["row"] == 2
     assert client.get("/api/applications").json() == []

@@ -5,7 +5,7 @@ from .config import FRONTEND_DIST
 from .routers import analytics, applications, io, reasons
 
 app = FastAPI(
-    title="ApplyTrail",
+    title="Application Tracking",
     description="Local-first job application tracker with failure-point analytics.",
     version="0.1.0",
 )
